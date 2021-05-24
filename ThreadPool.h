@@ -70,10 +70,9 @@ public:
     ~ThreadPool()
     {
         {
-            
+            stoped = true;
             std::unique_lock<std::mutex> lock(this->m);
         }
-        stoped = true;
         m_conditional_lock.notify_all();
         
         for(std::thread& worker : workers) {
