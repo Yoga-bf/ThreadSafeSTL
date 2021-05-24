@@ -42,11 +42,16 @@ public:
         std::lock_guard<std::mutex> lock(m);
         data.push(new_value);
     }
+    void emplace(T& new_value)
+    {
+        std::lock_guard<std::mutex> lock(m);
+        data.emplace(new_value);
+    }
     void pop(T& value)
     {
         std::lock_guard<std::mutex> lock(m);
         if(data.empty()) throw empty_queue();
-        value = data.front();
+        value = std::move(data.front());
         data.pop();
     }
     std::shared_ptr<T> pop()
