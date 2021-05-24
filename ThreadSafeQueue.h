@@ -47,13 +47,23 @@ public:
         std::lock_guard<std::mutex> lock(m);
         data.emplace(new_value);
     }
-    void pop(T& value)
+    bool pop(T& value)
     {
         std::lock_guard<std::mutex> lock(m);
-        if(data.empty()) throw empty_queue();
+        if(data.empty()){
+            std::cout << "the queue is empty!" << std::endl;
+            return false;
+        };
         value = std::move(data.front());
         data.pop();
+        return true;
     }
+    // auto front()
+    // {
+    //     std::lock_guard<std::mutex> lock(m);
+    //     if(data.empty()) throw empty_queue();
+    //     return data.front();
+    // }
     std::shared_ptr<T> pop()
     {
         std::lock_guard<std::mutex> lock(m);
@@ -61,5 +71,9 @@ public:
         std::shared_ptr<T> res(std::make_shared<T>(data.front()));
         data.pop();
         return res;
+    }
+    ~Thread_safe_queue()
+    {
+        
     }
 };
