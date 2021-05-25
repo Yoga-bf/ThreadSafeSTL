@@ -26,8 +26,9 @@ public:
                     {
                         std::unique_lock<std::mutex> lock(this->m);
                         this->m_conditional_lock.wait(lock, [this]{return this->stoped || !this->tasks.empty();});
-                        if(this->stoped && this->tasks.empty())
+                        if( this->stoped && this->tasks.empty()){
                             return;
+                        }    
                         this->tasks.pop(task);
                     }
                     task();
@@ -44,8 +45,9 @@ public:
     template<typename F, typename... Args>
     auto enqueue(F&& f, Args&&... args) -> std::future<decltype(std::forward<F>(f)(std::forward<Args>(args)...))>
     {
-        std::function<decltype(std::forward<F>(f)(std::forward<Args>(args)...))()> func = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-        auto task_ptr = std::make_shared<std::packaged_task<decltype(std::forward<F>(f)(std::forward<Args>(args)...))()>>(func);
+        using funcType = decltype(std::forward<F>(f)(std::forward<Args>(args)...));
+        std::function<funcType()> func = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
+        auto task_ptr = std::make_shared<std::packaged_task<funcType()>>(func);
         std::function<void()> warpfunc = [task_ptr](){(*task_ptr)();};
         std::unique_lock<std::mutex> lock(m);
         if(stoped) throw std::runtime_error("enqueue on stopped ThreadPool");
@@ -56,10 +58,10 @@ public:
 
     void stopAll()
     {
-        {
-            stoped = true;
-            std::unique_lock<std::mutex> lock(this->m);
-        }
+        
+        stoped = true;
+        std::unique_lock<std::mutex> lock(this->m);
+        lock.unlock();
         m_conditional_lock.notify_all();
         for(std::thread& worker : workers) {
             if(worker.joinable())
@@ -70,11 +72,10 @@ public:
     ~ThreadPool()
     {
         {
-            stoped = true;
             std::unique_lock<std::mutex> lock(this->m);
+            this->stoped = true;
         }
         m_conditional_lock.notify_all();
-        
         for(std::thread& worker : workers) {
             if(worker.joinable())
                 worker.join();
